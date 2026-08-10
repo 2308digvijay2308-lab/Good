@@ -1,0 +1,14 @@
+# ============================================================================
+#  PROJECT JARVIS — RELEASE KEYSTORE CONFIG (TEMPLATE)
+# ----------------------------------------------------------------------------
+#  Copy this file to `android/key.properties` and fill in your real values.
+#  The keystore file path is relative to `android/app/` (where build.gradle
+#  resolves `file(...)`), so place your .jks in android/app/.
+#
+#  ⚠️ NEVER COMMIT key.properties or your .jks keystore. They are git-ignored.
+#  For CI, supply these as GitHub Actions SECRETS instead (see workflow).
+# ============================================================================
+storePassword=your_store_password
+keyPassword=your_key_password
+keyAlias=your_key_alias
+storeFile=upload-keystore.jks

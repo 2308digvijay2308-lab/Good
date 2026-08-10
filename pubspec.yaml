@@ -1,0 +1,51 @@
+name: project_jarvis
+description: "PROJECT JARVIS — An Android AI Voice Assistant powered by Google Gemini 2.5 Flash."
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ------------------------------------------------------------------
+  # Core JARVIS feature packages (native, cloud-compile safe)
+  # ------------------------------------------------------------------
+  # Stable Google AI SDK client for the Gemini 2.5 Flash model.
+  google_generative_ai: ^0.4.7
+
+  # Microphone voice-input engine (Android speech recognition).
+  speech_to_text: ^7.0.0
+
+  # Text-to-Speech voice synthesis output.
+  flutter_tts: ^4.2.0
+
+  # Runtime OS permission handling (mic), Android 11+ safety.
+  permission_handler: ^11.3.1
+
+  # State management / DI.
+  provider: ^6.1.2
+
+  # Persistent chat history (SQLite on Android).
+  sqflite: ^2.3.3
+  path: ^1.9.0
+
+  # Useful utilities (UUID for message ids, etc).
+  uuid: ^4.4.2
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+
+  # If you later add assets (e.g. a JARVIS logo) uncomment below:
+  # assets:
+  #   - assets/images/
+  #   - assets/sounds/

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (API 31) SplashScreen API theme for PROJECT JARVIS. -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/jarvis_black</item>
+        <!-- Official Android 12 splash screen attributes. -->
+        <item name="android:windowSplashScreenBackground">@color/jarvis_black</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/jarvis_splash_logo</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/jarvis_black</item>
+    </style>
+</resources>

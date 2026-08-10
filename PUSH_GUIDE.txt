@@ -1,0 +1,88 @@
+=====================================================================
+ PROJECT JARVIS — GitHub Upload Guide (PUSH GUIDE)
+=====================================================================
+
+यह फाइल बताती है कि इस project को GitHub पर upload करके
+release APK कैसे बनवाएँ।
+
+---------------------------------------------------------------------
+ STEP 1 — GitHub repo बनाएँ
+---------------------------------------------------------------------
+ 1. github.com/new पर जाएँ
+ 2. Name: project_jarvis
+ 3. Visibility: Private  (recommended)
+ 4. "Create repository" दबाएँ
+    (README बनाने का checkbox tick न करें)
+
+---------------------------------------------------------------------
+ STEP 2 — अपने computer पर project लाएँ
+---------------------------------------------------------------------
+ - इस zip को unzip करें
+ - flutter create --platforms=android .  (एक बार, Gradle wrapper
+   jar बनाने के लिए)
+
+---------------------------------------------------------------------
+ STEP 3 — Push करें (अपने computer के terminal में)
+---------------------------------------------------------------------
+   cd project_jarvis
+   flutter create --platforms=android .
+   git init
+   git add -A
+   git commit -m "Project JARVIS"
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/project_jarvis.git
+   git push -u origin main
+
+   (YOUR_USERNAME की जगह अपना GitHub username डालें।
+    GitHub login पूछेगा — browser या token से login करें)
+
+   अगर remote पहले से जुड़ा है तो:  git push -u origin main  सीधे करें
+
+---------------------------------------------------------------------
+ STEP 4 — Secrets add करें (optional but recommended)
+---------------------------------------------------------------------
+ GitHub → repo → Settings → Secrets and variables → Actions
+ → New repository secret:
+
+   GEMINI_KEY               = your Gemini API key   (REQUIRED for AI replies)
+   KEYSTORE_BASE64          = base64 of keystore    (Play signing)
+   KEYSTORE_PASSWORD        = store password
+   KEY_PASSWORD             = key password
+   KEY_ALIAS                = key alias
+   SERVICE_ACCOUNT_JSON     = Play service account  (Play auto-upload)
+
+---------------------------------------------------------------------
+ STEP 5 — Build & Download
+---------------------------------------------------------------------
+ 1. GitHub → Actions tab
+ 2. Workflow चुनें:
+      - "Build Release APK"  → app-release.apk  (phone install)
+      - "Build Play Store Bundle" → signed .aab (Play Store)
+      - "Upload to Google Play" → Play पर direct upload
+ 3. "Run workflow" दबाएँ, green होने का इंतज़ार करें (5-10 min)
+ 4. Artifacts → "project-jarvis-release" → download app-release.apk
+
+---------------------------------------------------------------------
+ FAST ALTERNATIVE — deploy.sh
+---------------------------------------------------------------------
+ अगर GitHub CLI (gh) installed है:
+   brew install gh            # macOS
+   gh auth login
+   ./deploy.sh
+ यह push + secrets + build trigger करके download link print कर देता है।
+
+---------------------------------------------------------------------
+ VERSIONING (नया release निकालने के लिए)
+---------------------------------------------------------------------
+   ./scripts/bump_version.sh --auto
+     → versionCode Play से compare करके bump
+     → release notes generate
+     → tag v<semver> push → AAB build → Play upload (auto-chain)
+
+---------------------------------------------------------------------
+ NOTE
+---------------------------------------------------------------------
+ - push अपनी machine से ही करें (GitHub credentials आपके हैं)
+ - key.properties, *.jks, local.properties git-ignore हैं (सुरक्षित)
+ - Play Store के लिए .aab signed होना ज़रूरी है (KEYSTORE_* secrets)
+=====================================================================

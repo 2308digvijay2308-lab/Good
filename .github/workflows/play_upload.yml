@@ -1,0 +1,149 @@
+# ============================================================================
+#  PROJECT JARVIS — GOOGLE PLAY AUTO-UPLOAD
+# ----------------------------------------------------------------------------
+#  Builds the signed release .aab and uploads it directly to the Google Play
+#  Console via the official google-play-upload-action. Runs after a signed
+#  AAB build succeeds (workflow_dispatch, or automatically chained).
+#
+#  REQUIRED GitHub secrets:
+#    SERVICE_ACCOUNT_JSON — the JSON key for a Play Console service account
+#        that has the "Release to production/Testing" permission for the app.
+#    KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_PASSWORD / KEY_ALIAS — signing.
+#    GEMINI_KEY — (optional) compile-time API key injection.
+#
+#  Create the service account: Play Console → Setup → API access → create a
+#  Google Cloud project + service account, grant "Release" permission, and
+#  download its JSON key.
+#
+#  This workflow uploads to the INTERNAL TESTING track by default.
+#  Change `track` below to edit which track receives the build.
+# ============================================================================
+
+name: Upload to Google Play
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Play Console release track'
+        required: true
+        default: 'internal'
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+  # Auto-chain: run after "Build Play Store Bundle" finishes successfully.
+  # The job below checks the triggering workflow result before uploading.
+  workflow_run:
+    workflows: ['Build Play Store Bundle']
+    types:
+      - completed
+
+env:
+  FLUTTER_CHANNEL: stable
+  JAVA_VERSION: '17'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-upload:
+    name: Build signed AAB & upload to Play (${{ github.event.inputs.track || 'internal' }})
+    runs-on: ubuntu-latest
+
+    steps:
+      # When chained after "Build Play Store Bundle", only proceed if it
+      # finished successfully. (No-op for manual workflow_dispatch runs.)
+      - name: Guard — only run after a successful AAB build
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: |
+          CONC="${{ github.event.workflow_run.conclusion }}"
+          echo "Triggering workflow conclusion: $CONC"
+          if [ "$CONC" != "success" ]; then
+            echo "::error::Chained run skipped — parent build concluded '$CONC'."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Accept Android SDK licenses
+        run: yes | flutter doctor --android-licenses > /dev/null 2>&1 || true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      # Reconstruct the release keystore from secrets (required for Play).
+      - name: Configure release signing
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is required to upload to Play."
+            exit 1
+          fi
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+                    cat > android/key.properties <<EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Build signed release AAB
+        run: |
+          EXTRA=""
+          if [ -n "${{ secrets.GEMINI_KEY }}" ]; then
+            EXTRA="--dart-define=GEMINI_KEY=${{ secrets.GEMINI_KEY }}"
+          fi
+          flutter build appbundle --release $EXTRA
+
+      # Derive the version name from the nearest git tag (e.g. v1.2.3).
+      - name: Derive version name
+        id: version
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "1.0.0")
+          VER=${TAG#v}
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      # Auto-generate release notes from the git log since the last tag.
+      - name: Generate release notes
+        id: notes
+        run: |
+          bash scripts/generate_release_notes.sh build/release_notes.txt || true
+          if [ -f build/release_notes.txt ]; then
+            { echo "NOTES<<EOF"; cat build/release_notes.txt; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          else
+            echo "NOTES<<EOF" >> "$GITHUB_OUTPUT"
+            echo "PROJECT JARVIS — AI voice assistant release ${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Upload the .aab to the chosen Play track with auto release notes.
+      - name: Upload AAB to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.SERVICE_ACCOUNT_JSON }}
+          packageName: com.example.project_jarvis
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: ${{ github.event.inputs.track || 'internal' }}
+          status: draft
+          userFraction: 1.0
+          changesNotSentForReview: true
+          releaseName: JARVIS ${{ steps.version.outputs.version }}
+          releaseNotes: ${{ steps.notes.outputs.NOTES }}

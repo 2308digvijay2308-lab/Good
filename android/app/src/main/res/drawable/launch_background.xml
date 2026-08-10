@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark launch screen with the JARVIS logo, shown while Flutter boots. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/jarvis_black" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/jarvis_splash_logo" />
+    </item>
+</layer-list>

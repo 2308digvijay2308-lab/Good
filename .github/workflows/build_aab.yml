@@ -1,0 +1,117 @@
+# ============================================================================
+#  PROJECT JARVIS — PLAY STORE RELEASE BUILD (APP BUNDLE / .aab)
+# ----------------------------------------------------------------------------
+#  Builds a signed Android App Bundle (.aab) for upload to Google Play.
+#  Unlike the APK workflow, this REQUIRES a real release keystore (configured
+#  via GitHub secrets) because Play Store rejects debug-signed bundles.
+#
+#  To trigger: Actions → "Build Play Store Bundle" → Run workflow
+# ============================================================================
+
+name: Build Play Store Bundle
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*' # e.g. push tag `v1.0.0` to auto-build a bundle
+
+env:
+  FLUTTER_CHANNEL: stable
+  JAVA_VERSION: '17'
+
+permissions:
+  contents: read
+
+jobs:
+  build-aab:
+    name: Build signed AAB (Flutter stable / Java 17)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: ${{ env.FLUTTER_CHANNEL }}
+          cache: true
+
+      - name: Accept Android SDK licenses
+        run: |
+          yes | flutter doctor --android-licenses > /dev/null 2>&1 || true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run static analysis
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test
+
+      # Cross-check that the pushed version tag matches pubspec.yaml so the
+      # bundle's versionName/versionCode are consistent with the release.
+      - name: Verify version tag matches pubspec
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "no-tag")
+          PSV=$(grep -E '^version:' pubspec.yaml | head -n1 | sed -E 's/version:[[:space:]]*([0-9.]+)\+.*/\1/')
+          echo "Git tag: $TAG  |  pubspec versionName: $PSV"
+          if [ -n "$TAG" ] && [ "$TAG" != "no-tag" ] && [ "${TAG#v}" != "$PSV" ]; then
+            echo "::warning::Version tag ($TAG) does not match pubspec ($PSV). Run scripts/bump_version.sh first."
+          fi
+
+      # Reconstruct the release keystore from secrets (REQUIRED for a bundle).
+      - name: Configure release signing
+        run: |
+          if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is REQUIRED to build a signed AAB."
+            exit 1
+          fi
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
+                    cat > android/key.properties <<EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=upload-keystore.jks
+          EOF
+          echo "Release signing configured."
+
+      # Build the signed Android App Bundle.
+      - name: Build release AAB
+        run: |
+          EXTRA=""
+          if [ -n "${{ secrets.GEMINI_KEY }}" ]; then
+            EXTRA="--dart-define=GEMINI_KEY=${{ secrets.GEMINI_KEY }}"
+          fi
+          flutter build appbundle --release $EXTRA
+
+      # Verify the bundle exists and show its signing status.
+      - name: Verify bundle
+        run: |
+          BUNDLE=$(find build/app/outputs/bundle -name '*.aab' | head -n 1)
+          echo "Built bundle: $BUNDLE"
+          [ -n "$BUNDLE" ] && echo "Bundle size: $(du -h "$BUNDLE" | cut -f1)"
+          # Check that it was signed with the release key (not debug).
+          if [ -n "$BUNDLE" ]; then
+            keytool -printcert -jarfile "$BUNDLE" 2>/dev/null | head -n 20 || true
+          fi
+
+      - name: Upload release AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-jarvis-playstore-bundle
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
+  # NOTE: To push this .aab straight to Google Play, use the separate
+  # "Upload to Google Play" workflow (play_upload.yml) instead, which requires
+  # a Play service-account JSON secret.
