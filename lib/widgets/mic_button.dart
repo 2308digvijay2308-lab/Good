@@ -75,7 +75,8 @@ class _MicButtonState extends State<MicButton>
                   shape: BoxShape.circle,
                   color: Colors.redAccent.withValues(alpha: 0.35 * (1 - _pulse.value)),
                 ),
-                transform: Matrix4.identity()..scale(_scale.value),
+                transform: Matrix4.identity()
+  ..scaleByDouble(_scale.value, _scale.value, _scale.value, 1.0),
               ),
             child!,
           ],

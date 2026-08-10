@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
-import '../config/app_config.dart';
 import '../models/chat_message.dart';
 import '../services/chat_database.dart';
 import '../services/gemini_service.dart';
@@ -223,17 +222,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ---- Misc ------------------------------------------------------------------
-  Future<void> _clearChat() async {
-    _gemini.clearHistory();
-    await _db.clearAll().catchError((_) {});
-    if (mounted) {
-      setState(() {
-        _messages.clear();
-        _status = JarvisStatus.idle;
-      });
-    }
-  }
-
   Future<void> _toggleTts() async {
     final newVal = !_tts.speechEnabled;
     await _tts.setEnabled(newVal);
