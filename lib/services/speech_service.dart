@@ -11,8 +11,6 @@ bool get listening => _listening;
 
 String _localeId = 'en_US';
 
-/// Initialise the speech engine + request mic permission.
-/// Returns true when ready to listen.
 Future<bool> initialize() async {
 if (_available) return true;
 
@@ -38,7 +36,6 @@ return _available;
 
 }
 
-/// Start listening and continuously push recognised words to [onText].
 Future<void> startListening({
 required void Function(String recognizedText) onText,
 void Function()? onListenDone,
@@ -75,7 +72,6 @@ await _speech.listen(
 
 }
 
-/// Stop listening.
 Future<void> stopListening() async {
 _listening = false;
 await _speech.stop();
