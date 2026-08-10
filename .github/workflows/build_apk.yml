@@ -73,10 +73,37 @@ jobs:
           ./gradlew --version
 
       - name: Install dependencies
-        run: flutter pub get
+  run: flutter pub get
 
-      - name: Run static analysis
-        run: flutter analyze --no-fatal-infos
+- name: Verify source files on Linux runner
+  run: |
+    echo "=== CURRENT DIRECTORY ==="
+    pwd
+
+    echo "=== LIB DIRECTORY ==="
+    ls -la lib
+
+    echo "=== LIB/SCREENS DIRECTORY ==="
+    ls -lab lib/screens
+
+    echo "=== EXACT FILE CHECK ==="
+    if [ -f "lib/screens/home_screen.dart" ]; then
+      echo "FOUND: lib/screens/home_screen.dart"
+      wc -l "lib/screens/home_screen.dart"
+      stat "lib/screens/home_screen.dart"
+    else
+      echo "MISSING: lib/screens/home_screen.dart"
+      exit 1
+    fi
+
+    echo "=== GIT TREE ==="
+    git ls-tree -r HEAD --name-only | grep -i "home_screen.dart" || true
+
+    echo "=== MAIN IMPORT ==="
+    sed -n '1,8p' lib/main.dart
+
+- name: Run static analysis
+  run: flutter analyze --no-fatal-infos
 
       - name: Run tests
         run: flutter test
